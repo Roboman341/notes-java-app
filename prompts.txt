@@ -1,0 +1,7 @@
+I'm looking for a concise, high-level roadmap to build a simple web application in Java 21, using Spring Boot and Thymeleaf, with a basic structure like Google Keep. The core features I want are:
+
+User authentication so each user can create and manage their own account.
+Personalized notes where each user can create, view, edit, and delete only their own notes.
+Image upload functionality for each note, with secure storage.
+Database support, starting with an embedded H2 database for early development and then moving to PostgreSQL.
+I don't need specific code snippets or implementation details; I'm looking for broad steps and components involved in achieving this functionality so I can search for examples and deepen my knowledge.
