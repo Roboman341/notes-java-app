@@ -10,29 +10,35 @@ import org.springframework.web.bind.annotation.*;
 @Controller
 @RequestMapping("/test")
 public class SecurityController {
-        @Autowired
-        CustomerService customerService;
+    @Autowired
+    CustomerService customerService;
 
-        @GetMapping("/home")
-        public String home(Model model) {
-            model.addAttribute("message", "This is Home");
-            return "placeholder";
-        }
+    @GetMapping("/home")
+    public String home(Model model) {
+        model.addAttribute("message", "This is Home");
+        return "placeholder";
+    }
 
-        @GetMapping("/student")
-        public String student(Model model){
-            model.addAttribute("message", "This is Student");
-            return "placeholder";
-        }
+    @GetMapping("/student")
+    public String student(Model model){
+        model.addAttribute("message", "This is Student");
+        return "placeholder";
+    }
 
-        @GetMapping("/admin")
-        public String admin(Model model){
-            model.addAttribute("message", "This is Admin");
-            return "placeholder";
-       }
+    @GetMapping("/admin")
+    public String admin(Model model){
+        model.addAttribute("message", "This is Admin");
+        return "placeholder";
+    }
 
-        @PostMapping("/create")
-        public UserDetails createNewCustomer(@RequestParam("username") String username, @RequestParam("email") String email, @RequestParam("password") String password){
-            return  customerService.createNewCustomer(username, email, password);
-        }
+    @PostMapping("/create")
+    public String createNewCustomer(@RequestParam("username") String username,
+                                    @RequestParam("email") String email,
+                                    @RequestParam("password") String password,
+                                    Model model) {
+        UserDetails newUser = customerService.createNewCustomer(username, email, password);
+        model.addAttribute("newUser", newUser);
+        model.addAttribute("message", "New user has been created");
+        return "placeholder";
+    }
 }
