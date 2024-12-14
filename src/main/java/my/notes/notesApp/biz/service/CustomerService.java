@@ -4,6 +4,7 @@ import lombok.extern.log4j.Log4j2;
 import my.notes.notesApp.biz.model.Customer;
 import my.notes.notesApp.data.CustomerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -40,12 +41,17 @@ public class CustomerService implements UserDetailsService {
                 .userName(username)
                 .email(email) // Assuming the Customer entity has an email field
                 .password(encodedPassword)
-                .authorities("student") // Assign default authority
+                .authorities("ROLE_STUDENT") // Assign default authority
                 .build();
 
         // Save the new user to the database
         customerRepository.save(customer);
 
         return customer; // Assuming Customer implements UserDetails
+    }
+
+    public Customer getCurrentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return customerRepository.findByUserName(username).getFirst(); // TODO: think about handling exception here
     }
 }

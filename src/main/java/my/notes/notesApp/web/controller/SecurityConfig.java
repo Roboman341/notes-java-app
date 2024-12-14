@@ -37,9 +37,9 @@ public class SecurityConfig {
         httpSecurity
                 .csrf(csrf -> csrf.disable()) // Consider enabling CSRF for better security
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/test/student").hasAuthority("student")
-                        .requestMatchers("/test/admin").hasAuthority("admin")
-                        .anyRequest().permitAll() // Allow all other requests
+                        .requestMatchers("/notes/**").authenticated()
+                        .requestMatchers("/test").hasAuthority("ROLE_ADMIN")
+//                        .anyRequest().permitAll() // Allow all other requests
                 )
                 .httpBasic(httpBasic -> httpBasic.disable()) // Disable HTTP Basic if not needed
                 .formLogin(form -> form.defaultSuccessUrl("/notes", true)); // Customize login behavior
