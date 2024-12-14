@@ -7,6 +7,7 @@ import my.notes.notesApp.data.NoteRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -20,6 +21,8 @@ class NotesAppTests {
 	private CustomerRepository customerRepository;
 	@Autowired
 	private NoteRepository noteRepository;
+	@Autowired
+	private PasswordEncoder passwordEncoder;
 
 	@Test
 	void contextLoads() {
@@ -27,9 +30,8 @@ class NotesAppTests {
 
 	@Test
 	void canSaveOneCustomer() {
-		Customer rob33 = new Customer("testusername2513", "testemail@gmail.com");
-		Customer savedCustomer = customerRepository.save(rob33);
-		assertThat(savedCustomer.getUserName()).isEqualTo("testusername2513");
+		Customer savedCustomer = customerRepository.save(new Customer(null, "testusername2513", "testemail@gmail.com", passwordEncoder.encode("test123"), "ROLE_USER"));
+		assertThat(savedCustomer.getUsername()).isEqualTo("testusername2513");
 	}
 
 	@Test
