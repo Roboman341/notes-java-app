@@ -6,10 +6,12 @@ import my.notes.notesApp.data.CustomerRepository;
 import my.notes.notesApp.data.NoteRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 
@@ -22,16 +24,17 @@ public class NotesJavaApp {
 		SpringApplication.run(NotesJavaApp.class, args);
 	}
 
-	@Bean
-	public CommandLineRunner demo(CustomerRepository customerRepository, NoteRepository noteRepository){
-		return args -> {
-			customerRepository.save(new Customer("Roboman341", "myEmail@gmail.com"));
-			customerRepository.save(new Customer("TestUser", "TestUser@gmail.com"));
-			customerRepository.findAll().forEach(user -> {
-				log.info(user.toString());
-			});
-			noteRepository.save(new Note(null, "Roboman341", "My test note's content", "note title", LocalDateTime.now()));
-			noteRepository.save(new Note(null, "TestUser", "my content ABCDEFG", "note title", LocalDateTime.now()));
-		};
-	}
+	 //Not needed since in-memory db is used. TODO: get rid of it later
+//	@Bean
+//	public CommandLineRunner demo(CustomerRepository customerRepository, NoteRepository noteRepository, PasswordEncoder passwordEncoder){
+//		return args -> {
+//			customerRepository.save(new Customer(null, System.getenv("ADMIN_USERNAME"), System.getenv("ADMIN_EMAIL"), passwordEncoder.encode(System.getenv("ADMIN_PASSWORD")), "admin"));
+//			customerRepository.save(new Customer(null, System.getenv("STUDENT_USERNAME"), System.getenv("STUDENT_EMAIL"), passwordEncoder.encode(System.getenv("STUDENT_PASSWORD")), "student"));
+//			customerRepository.findAll().forEach(user -> {
+//				log.info(user.toString());
+//			});
+//			noteRepository.save(new Note(null, "Roboman341", "My test note's content", "note title", LocalDateTime.now()));
+//			noteRepository.save(new Note(null, "TestUser", "my content ABCDEFG", "note title", LocalDateTime.now()));
+//		};
+//	}
 }
