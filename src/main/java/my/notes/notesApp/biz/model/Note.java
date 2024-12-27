@@ -17,8 +17,6 @@ public class Note {
     @GeneratedValue
     private Long id;
 
-    private String owner; // TODO: get rid of this since creator field in implemented
-
     private String content;
 
     private String title;

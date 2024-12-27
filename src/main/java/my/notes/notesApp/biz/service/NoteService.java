@@ -7,6 +7,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.MissingResourceException;
 import java.util.stream.Stream;
 
 @Service
@@ -33,17 +34,16 @@ public class NoteService {
                 .toList();
     }
 
-    public Note getNoteByID (Long id) {
+    public Note getNoteByID(Long id) {
         Customer currentUser = customerService.getCurrentUser();
-        Note noteToReturn = noteRepository.findById(id).orElseThrow(() -> new RuntimeException("Note not found"));
+        Note noteToReturn = noteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Note not found"));
 
-        // Allow access if the user is the creator or an admin
-        if (noteToReturn.getCreator().getId().equals(currentUser.getId()) &&
-                currentUser.getAuthorities().contains("ROLE_ADMIN")) {
-            return noteToReturn;
-        } else {
+        if (!noteToReturn.getCreator().getId().equals(currentUser.getId()) &&
+                !currentUser.getAuthorities().contains("ROLE_ADMIN")) {
             throw new AccessDeniedException("You do not have permission to view this note");
         }
+        return noteToReturn;
     }
 
     public Note saveNote (Note note) {

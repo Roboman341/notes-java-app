@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @SpringBootApplication
 public class NotesJavaApp {
@@ -27,14 +28,14 @@ public class NotesJavaApp {
 	 //Not needed since in-memory db is used. TODO: get rid of it later
 //	@Bean
 //	public CommandLineRunner demo(CustomerRepository customerRepository, NoteRepository noteRepository, PasswordEncoder passwordEncoder){
-//		return args -> {
-//			customerRepository.save(new Customer(null, System.getenv("ADMIN_USERNAME"), System.getenv("ADMIN_EMAIL"), passwordEncoder.encode(System.getenv("ADMIN_PASSWORD")), "admin"));
-//			customerRepository.save(new Customer(null, System.getenv("STUDENT_USERNAME"), System.getenv("STUDENT_EMAIL"), passwordEncoder.encode(System.getenv("STUDENT_PASSWORD")), "student"));
-//			customerRepository.findAll().forEach(user -> {
-//				log.info(user.toString());
-//			});
-//			noteRepository.save(new Note(null, "Roboman341", "My test note's content", "note title", LocalDateTime.now()));
-//			noteRepository.save(new Note(null, "TestUser", "my content ABCDEFG", "note title", LocalDateTime.now()));
-//		};
-//	}
+//            return args -> {
+//                customerRepository.save(new Customer(null, System.getenv("ADMIN_USERNAME"), System.getenv("ADMIN_EMAIL"), passwordEncoder.encode(System.getenv("ADMIN_PASSWORD")), "ROLE_ADMIN"));
+//			    customerRepository.save(new Customer(null, System.getenv("STUDENT_USERNAME"), System.getenv("STUDENT_EMAIL"), passwordEncoder.encode(System.getenv("STUDENT_PASSWORD")), "ROLE_STUDENT"));
+//                customerRepository.findAll().forEach(user -> {
+//                    log.info(user.toString());
+//                });
+//                noteRepository.save(new Note(null, "My test note's content", "Admin's note", LocalDateTime.now(), customerRepository.findByUserName(System.getenv("ADMIN_USERNAME")).getFirst()));
+//			    noteRepository.save(new Note(null, "my content ABCDEFG", "Student's note", LocalDateTime.now(), customerRepository.findByUserName(System.getenv("STUDENT_USERNAME")).getFirst()));
+//            };
+//    }
 }

@@ -36,18 +36,20 @@ public class CustomerService implements UserDetailsService {
     }
 
     public UserDetails createNewCustomer(String username, String email, String password) {
-        String encodedPassword = passwordEncoder().encode(password); // Encode the password
-        Customer customer = Customer.builder()
-                .userName(username)
-                .email(email) // Assuming the Customer entity has an email field
-                .password(encodedPassword)
-                .authorities("ROLE_STUDENT") // Assign default authority
-                .build();
+        if (customerRepository.findByUserName(username).isEmpty()) {
+            String encodedPassword = passwordEncoder().encode(password);
+            Customer customer = Customer.builder()
+                    .userName(username)
+                    .email(email)
+                    .password(encodedPassword)
+                    .authorities("ROLE_STUDENT") // Assign default authority
+                    .build();
 
-        // Save the new user to the database
-        customerRepository.save(customer);
-
-        return customer; // Assuming Customer implements UserDetails
+            customerRepository.save(customer);
+            return customer;
+        } else {
+            throw new IllegalArgumentException("Username already exists!");
+        }
     }
 
     public Customer getCurrentUser() {

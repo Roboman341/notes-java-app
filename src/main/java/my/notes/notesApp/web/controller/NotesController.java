@@ -39,7 +39,6 @@ public class NotesController {
         noteService.saveNote(note);
         log.info(String.valueOf(note));
         log.info("Note's title: {}", note.getTitle());
-        log.info("Note's owner: {}", note.getOwner());
         return "redirect:/notes";
     }
 
@@ -49,7 +48,6 @@ public class NotesController {
         if (note != null) {
             model.addAttribute("note", note);
             log.info("Note's title: {}", note.getTitle());
-            log.info("Note's owner: {}", note.getOwner());
             log.info("Note's content: {}", note.getContent());
             return "edit";
         }
