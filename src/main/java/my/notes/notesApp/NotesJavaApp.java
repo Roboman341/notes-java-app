@@ -47,7 +47,6 @@ public class NotesJavaApp {
 								 PasswordEncoder passwordEncoder,
 								 Environment env) {
 		try {
-			// Create admin user
 			Customer admin = new Customer(
 					null,
 					getRequiredEnvVariable(env, "ADMIN_USERNAME"),
@@ -56,7 +55,6 @@ public class NotesJavaApp {
 					"ROLE_ADMIN"
 			);
 
-			// Create student user
 			Customer student = new Customer(
 					null,
 					getRequiredEnvVariable(env, "STUDENT_USERNAME"),
@@ -65,11 +63,9 @@ public class NotesJavaApp {
 					"ROLE_STUDENT"
 			);
 
-			// Save users in batch
 			List<Customer> users = Arrays.asList(admin, student);
 			customerRepository.saveAll(users);
 
-			// Log created users
 			log.info("Created users:");
 			users.forEach(user -> log.info(user.toString()));
 
@@ -93,7 +89,6 @@ public class NotesJavaApp {
 				throw new IllegalStateException("Failed to retrieve users from database");
 			}
 
-			// Create notes in batch
 			List<Note> notes = Arrays.asList(
 					new Note(null,
 							"My test note's content",
