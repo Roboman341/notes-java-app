@@ -35,9 +35,21 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	implementation 'org.assertj:assertj-core:3.26.3'
-	implementation 'org.springframework.boot:spring-boot-starter-security:3.2.8'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+//Needed to get rid of warnings:
+//OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+//And this one:
+//WARNING: A Java agent has been loaded dynamically (/home/rob/.gradle/caches/modules-2/files-2.1/net.bytebuddy/byte-buddy-agent/1.14.19/154da3a65b4f4a909d3e5bdec55d1b2b4cbb6ce1/byte-buddy-agent-1.14.19.jar)
+//WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+//WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+//WARNING: Dynamic loading of agents will be disallowed by default in a future release
+//OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+tasks.withType(Test).configureEach {
+	jvmArgs += ["-XX:+EnableDynamicAgentLoading", "-Xshare:off"]
 }
