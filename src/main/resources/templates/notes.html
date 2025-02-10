@@ -9,6 +9,10 @@
 <body>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <div class="container mt-5">
+  <div class="alert alert-info">
+    Logged in as: <strong th:text="${currentUser.Username}"></strong> |
+    Email: <strong th:text="${currentUser.email}"></strong>
+  </div>
   <h1>My Notes</h1>
   <a href="/notes/new" class="btn btn-primary mb-3">Create Note</a>
   <div class="row">
@@ -19,6 +23,7 @@
           <p class="card-text" th:text="${note.content}"></p>
           <a th:href="@{/notes/{id}/edit(id=${note.id})}" class="btn btn-sm btn-primary">Edit</a>
           <a th:href="@{/notes/{id}/delete(id=${note.id})}" class="btn btn-sm btn-danger">Delete</a>
+          <p>Created: <span th:text="${#temporals.format(note.createdAt, 'dd-MM-yyyy HH:mm')}"></span></p>
         </div>
       </div>
     </div>

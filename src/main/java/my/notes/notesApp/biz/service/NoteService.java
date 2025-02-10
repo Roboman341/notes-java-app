@@ -24,14 +24,11 @@ public class NoteService {
         Customer currentUser = customerService.getCurrentUser();
 
         // If the user is an admin, return all notes
-        if (currentUser.getAuthorities().contains("ROLE_ADMIN")) { //TODO: think of adding exception handling here
+        if (currentUser.getAuthorities().contains("ROLE_ADMIN")) { // TODO: think of adding exception handling here
             return noteRepository.findAll();
         }
 
-        // Otherwise, return only the notes created by the current user
-        return Stream.of(noteRepository.findById(currentUser.getId())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found")))
-                .toList();
+        return noteRepository.findByCreator(currentUser);
     }
 
     public Note getNoteByID(Long id) {
@@ -47,6 +44,7 @@ public class NoteService {
     }
 
     public Note saveNote (Note note) {
+        note.setCreator(customerService.getCurrentUser()); // Set creator before saving
         Note savedNote = noteRepository.save(note);
         return savedNote;
     }

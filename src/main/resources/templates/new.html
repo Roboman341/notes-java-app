@@ -12,10 +12,7 @@
             <label for="title" class="form-label">Title</label>
             <input type="text" class="form-control" id="title" name="title" th:field="*{title}" required>
         </div>
-        <div class="mb-3">
-            <label for="owner" class="form-label">Owner</label>
-            <input type="text" class="form-control" id="owner" name="owner" th:field="*{owner}" required>
-        </div>
+        <input type="hidden" th:field="*{creator}">
         <div class="mb-3">
             <label for="content" class="form-label">Content</label>
             <textarea class="form-control" id="content" name="content" th:field="*{content}" rows="5" required></textarea>

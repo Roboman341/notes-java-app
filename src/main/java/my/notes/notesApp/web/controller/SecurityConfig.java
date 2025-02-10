@@ -36,6 +36,7 @@ public class SecurityConfig {
         return provider;
     }
 
+    //TODO: refactor according to https://docs.spring.io/spring-security/reference/servlet/configuration/java.html
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity

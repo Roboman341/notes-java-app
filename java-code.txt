@@ -1,0 +1,1190 @@
+package my.notes.notesApp.data;
+
+import my.notes.notesApp.biz.model.Note;
+import org.springframework.data.repository.CrudRepository;
+
+import java.util.List;
+
+public interface NoteRepository extends CrudRepository<Note, Long> {}
+package my.notes.notesApp.data;
+
+import my.notes.notesApp.biz.model.Customer;
+import org.springframework.data.repository.CrudRepository;
+import java.util.List;
+
+public interface CustomerRepository extends CrudRepository<Customer, Long> {
+    List<Customer> findByUserName(String userName);
+    Customer findById (long id);
+}
+package my.notes.notesApp.web.controller;
+
+@Controller
+@RequestMapping("/test")
+public class SecurityController {
+    @Autowired
+    CustomerService customerService;
+
+    @GetMapping("/home")
+    public String home(Model model) {
+        model.addAttribute("message", "This is Home");
+        return "placeholder";
+    }
+
+    @PreAuthorize("hasRole('admin')")
+    @GetMapping("/admin")
+    public String admin(Model model) {
+        model.addAttribute("message", "This is Admin");
+        return "placeholder";
+    }
+
+    @PreAuthorize("hasRole('student') or hasRole('admin')")
+    @GetMapping("/student")
+    public String student(Model model){
+        model.addAttribute("message", "This is Student");
+        return "placeholder";
+    }
+
+    @PostMapping("/create")
+    public String createNewCustomer(
+            @Valid @RequestParam("username") String username,
+            @Valid @RequestParam("email") String email,
+            @Valid @RequestParam("password") String password,
+            BindingResult result,
+            Model model) {
+
+        if (result.hasErrors()) {
+            return "register";
+        }
+        UserDetails newUser = customerService.createNewCustomer(username, email, password);
+        return "redirect:/login";
+    }
+}
+package my.notes.notesApp.web.controller;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleIllegalArgumentException(IllegalArgumentException ex) {
+        return ResponseEntity.badRequest().body(ex.getMessage());
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<String> handleGenericException(Exception ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred.");
+    }
+}
+package my.notes.notesApp.web.controller;
+
+@Controller
+public class LoginController {
+    @GetMapping("/login")
+    public String loginPage() {
+        return "login";
+    }
+}package my.notes.notesApp.web.controller;
+
+@RestController
+@RequestMapping("/api/users")
+public class ApiController {
+    @Autowired
+    private CustomerService customerService;
+
+    @Autowired
+    private CustomerRepository customerRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    public ApiController(CustomerRepository customerRepository) {
+        this.customerRepository = customerRepository;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('admin')")
+    public ResponseEntity<UserDetails> createUser(@RequestBody @Valid UserCreateRequest request) {
+        if (!customerRepository.findByUserName(request.username()).isEmpty()) {
+            throw new IllegalArgumentException("Username already exists!");
+        }
+
+        // Create the new user
+        UserDetails user = customerService.createNewCustomer(
+                request.username(),
+                request.email(),
+                request.password());
+        return ResponseEntity.ok(user);
+    }
+
+    record UserCreateRequest(
+            @NotBlank String username,
+            @Email String email,
+            @NotBlank String password) {}
+}package my.notes.notesApp.web.controller;
+
+import my.notes.notesApp.biz.service.CustomerService;
+
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+public class SecurityConfig {
+
+    @Autowired
+    private CustomerService customerService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(customerService); // Link the service
+        provider.setPasswordEncoder(passwordEncoder);
+        return provider;
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
+        httpSecurity
+                .csrf(csrf -> csrf.disable())
+                .formLogin(form -> form
+                        .loginPage("/login")
+                        .permitAll())
+                .logout(logout -> logout
+                        .logoutUrl("/logout")
+                        .logoutSuccessUrl("/login?logout")
+                        .permitAll())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/users/**").hasRole("ADMIN")
+                        .anyRequest().permitAll())
+                .formLogin(form -> form.defaultSuccessUrl("/notes", true))
+                .logout(logout -> logout.logoutSuccessUrl("/login?logout"));
+        return httpSecurity.build();
+    }
+
+
+    @Bean
+    public HttpFirewall allowUrlEncodedSlashHttpFirewall() {
+        StrictHttpFirewall firewall = new StrictHttpFirewall();
+        firewall.setAllowSemicolon(true);
+        firewall.setAllowUrlEncodedSlash(true);
+        return firewall;
+    }
+
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.httpFirewall(allowUrlEncodedSlashHttpFirewall());
+    }
+}package my.notes.notesApp.web.controller;
+
+import my.notes.notesApp.biz.model.Note;
+import my.notes.notesApp.biz.service.NoteService;
+
+@Controller
+@Log4j2
+@RequestMapping("/notes")
+public class NotesController {
+    private final NoteService noteService;
+
+    public NotesController (NoteService noteService) {
+        this.noteService = noteService;
+    }
+
+    @GetMapping
+    public String getAllNotes (Model model) {
+        model.addAttribute("notes", noteService.getAllNotes());
+        return "notes";
+    }
+
+    @GetMapping("/new")
+    public String showCreateNewNoteForm (Model model) {
+        model.addAttribute("note", new Note());
+        return "new";
+    }
+
+    @PostMapping
+    public String saveNote (@Valid @ModelAttribute Note note, BindingResult result) {
+        if (result.hasErrors()) {
+            return "new"; // Return form with errors
+        }
+        noteService.saveNote(note);
+        log.info(String.valueOf(note));
+        log.info("Note's title: {}", note.getTitle());
+        return "redirect:/notes";
+    }
+
+    @GetMapping("/{id}/edit")
+    public String showEditNoteForm(@PathVariable Long id, Model model) {
+        Note note = noteService.getNoteByID(id);
+        if (note != null) {
+            model.addAttribute("note", note);
+            log.info("Note's title: {}", note.getTitle());
+            log.info("Note's content: {}", note.getContent());
+            return "edit";
+        }
+        return "redirect:/notes";
+    }
+
+    @GetMapping("/{id}/delete")
+    public String deleteNote(@PathVariable Long id) {
+        noteService.deleteNoteByID(id);
+        return "redirect:/notes";
+    }
+}
+package my.notes.notesApp.biz.service;
+
+import my.notes.notesApp.biz.model.Customer;
+import my.notes.notesApp.data.CustomerRepository;
+
+@Log4j2
+@Service
+public class CustomerService implements UserDetailsService {
+
+    @Autowired
+    private CustomerRepository customerRepository;
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        // Retrieve user details by username from the database
+        Customer customer = customerRepository.findByUserName(username).getFirst();
+        if (customer == null) {
+            throw new UsernameNotFoundException("User not found with username: " + username);
+        }
+        return customer; // Assuming Customer implements UserDetails
+    }
+
+    public UserDetails createNewCustomer(String username, String email, String password) {
+        if (customerRepository.findByUserName(username).isEmpty()) {
+            String encodedPassword = passwordEncoder().encode(password);
+            Customer customer = Customer.builder()
+                    .userName(username)
+                    .email(email)
+                    .password(encodedPassword)
+                    .authorities("ROLE_STUDENT") // Assign default authority
+                    .build();
+
+            customerRepository.save(customer);
+            return customer;
+        } else {
+            throw new IllegalArgumentException("Username already exists!");
+        }
+    }
+
+    public Customer getCurrentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return customerRepository.findByUserName(username).getFirst(); // TODO: think about handling exception here
+    }
+}package my.notes.notesApp.biz.service;
+
+import my.notes.notesApp.biz.model.Customer;
+import my.notes.notesApp.biz.model.Note;
+import my.notes.notesApp.data.NoteRepository;
+
+@Service
+public class NoteService {
+    private final NoteRepository noteRepository;
+    private final CustomerService customerService;
+
+    public NoteService (NoteRepository noteRepository, CustomerService customerService) {
+        this.noteRepository = noteRepository;
+        this.customerService = customerService;
+    }
+
+    public Iterable<Note> getAllNotes () {
+        Customer currentUser = customerService.getCurrentUser();
+
+        // If the user is an admin, return all notes
+        if (currentUser.getAuthorities().contains("ROLE_ADMIN")) { //TODO: think of adding exception handling here
+            return noteRepository.findAll();
+        }
+
+        // Otherwise, return only the notes created by the current user
+        return Stream.of(noteRepository.findById(currentUser.getId())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found")))
+                .toList();
+    }
+
+    public Note getNoteByID(Long id) {
+        Customer currentUser = customerService.getCurrentUser();
+        Note noteToReturn = noteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Note not found"));
+
+        if (!noteToReturn.getCreator().getId().equals(currentUser.getId()) &&
+                !currentUser.getAuthorities().contains("ROLE_ADMIN")) {
+            throw new AccessDeniedException("You do not have permission to view this note");
+        }
+        return noteToReturn;
+    }
+
+    public Note saveNote (Note note) {
+        Note savedNote = noteRepository.save(note);
+        return savedNote;
+    }
+
+    public void deleteNoteByID (Long id) {
+        noteRepository.deleteById(id);
+    }
+}
+package my.notes.notesApp.biz.model;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Entity
+public class Note {
+
+    @Id
+    @GeneratedValue
+    private Long id;
+
+    private String content;
+
+    private String title;
+
+    private LocalDateTime createdAt;
+
+    @ManyToOne
+    @JoinColumn(name="user_id")
+    private Customer creator;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
+}
+
+package my.notes.notesApp.biz.model;
+
+@Entity
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
+public class Customer implements UserDetails {
+
+    // Delimiter used to split authorities string
+    private static final String AUTHORITIES_DELIMITER = "::";
+
+    @Id
+    @GeneratedValue
+    private Long id;
+    private String userName;
+    private String email;
+    private String password;
+    private String authorities;
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        // Split the authorities string and convert to a list of SimpleGrantedAuthority objects
+        return Arrays.stream(this.authorities.split(AUTHORITIES_DELIMITER))
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public String getPassword() {
+        return password;
+    }
+
+    @Override
+    public String getUsername() {
+        return userName;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+}package my.notes.notesApp;
+
+import my.notes.notesApp.biz.model.Customer;
+import my.notes.notesApp.biz.model.Note;
+import my.notes.notesApp.data.CustomerRepository;
+import my.notes.notesApp.data.NoteRepository;
+
+@SpringBootApplication
+public class NotesJavaApp {
+
+	private static final Logger log = LoggerFactory.getLogger(NotesJavaApp.class);
+
+	public static void main(String[] args) {
+		SpringApplication.run(NotesJavaApp.class, args);
+	}
+
+	 //Not needed since in-memory db is used. TODO: get rid of it later
+}
+package my.notes.notesApp;
+
+import my.notes.notesApp.biz.model.Customer;
+import my.notes.notesApp.biz.model.Note;
+import my.notes.notesApp.data.CustomerRepository;
+import my.notes.notesApp.data.NoteRepository;
+
+@SpringBootTest
+class NotesAppTests {
+
+	@Autowired
+	private CustomerRepository customerRepository;
+	@Autowired
+	private NoteRepository noteRepository;
+	@Autowired
+	private PasswordEncoder passwordEncoder;
+
+	@Test
+	void contextLoads() {
+	}
+
+	@Test
+	void canSaveOneCustomer() {
+		Customer savedCustomer = customerRepository.save(new Customer(null, "testusername2513", "testemail@gmail.com", passwordEncoder.encode("test123"), "ROLE_USER"));
+		assertThat(savedCustomer.getUsername()).isEqualTo("testusername2513");
+	}
+
+	@Test
+	void canGetNotes() {
+		String expectedContentForNote1 = "This is a note1 for canGetNotes test";
+		String expectedContentForNote2 = "This is a note2 for canGetNotes test";
+		Note savedNote1 = noteRepository.save(new Note(null, "testusername2513", expectedContentForNote1, expectedContentForNote1.concat("Title"), LocalDateTime.now()));
+		Note savedNote2 = noteRepository.save(new Note(null, "testusername2513", expectedContentForNote2, expectedContentForNote1.concat("Title"), LocalDateTime.now()));
+		Optional<Note> note1Id = noteRepository.findById(savedNote1.getId());
+		Optional<Note> note2Id = noteRepository.findById(savedNote2.getId());
+		assertThat(note1Id.get().getContent()).isEqualTo(expectedContentForNote1);
+		assertThat(note2Id.get().getContent()).isEqualTo(expectedContentForNote2);
+	}
+}
+package my.notes.notesApp.data;
+
+import my.notes.notesApp.biz.model.Note;
+import org.springframework.data.repository.CrudRepository;
+
+import java.util.List;
+
+public interface NoteRepository extends CrudRepository<Note, Long> {}
+package my.notes.notesApp.data;
+
+import my.notes.notesApp.biz.model.Customer;
+import org.springframework.data.repository.CrudRepository;
+import java.util.List;
+
+public interface CustomerRepository extends CrudRepository<Customer, Long> {
+    List<Customer> findByUserName(String userName);
+    Customer findById (long id);
+}
+package my.notes.notesApp.web.controller;
+
+import jakarta.validation.Valid;
+import my.notes.notesApp.biz.service.CustomerService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.*;
+
+@Controller
+@RequestMapping("/test")
+public class SecurityController {
+    @Autowired
+    CustomerService customerService;
+
+    @GetMapping("/home")
+    public String home(Model model) {
+        model.addAttribute("message", "This is Home");
+        return "placeholder";
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @GetMapping("/admin")
+    public String admin(Model model) {
+        model.addAttribute("message", "This is Admin");
+        return "placeholder";
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_STUDENT')")
+    @GetMapping("/student")
+    public String student(Model model){
+        model.addAttribute("message", "This is Student");
+        return "placeholder";
+    }
+
+    @PostMapping("/create")
+    public String createNewCustomer(
+            @Valid @RequestParam("username") String username,
+            @Valid @RequestParam("email") String email,
+            @Valid @RequestParam("password") String password,
+            BindingResult result,
+            Model model) {
+
+        if (result.hasErrors()) {
+            return "register";
+        }
+        UserDetails newUser = customerService.createNewCustomer(username, email, password);
+        return "redirect:/login";
+    }
+}
+package my.notes.notesApp.web.controller;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleIllegalArgumentException(IllegalArgumentException ex) {
+        return ResponseEntity.badRequest().body(ex.getMessage());
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<String> handleGenericException(Exception ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred.");
+    }
+}
+package my.notes.notesApp.web.controller;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+
+@Controller
+public class LoginController {
+    @GetMapping("/login")
+    public String loginPage() {
+        return "login";
+    }
+}package my.notes.notesApp.web.controller;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import my.notes.notesApp.biz.model.Customer;
+import my.notes.notesApp.biz.service.CustomerService;
+import my.notes.notesApp.data.CustomerRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/users")
+public class ApiController {
+    @Autowired
+    private CustomerService customerService;
+
+    @Autowired
+    private CustomerRepository customerRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    public ApiController(CustomerRepository customerRepository) {
+        this.customerRepository = customerRepository;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<UserDetails> createUser(@RequestBody @Valid UserCreateRequest request) {
+        if (!customerRepository.findByUserName(request.username()).isEmpty()) {
+            throw new IllegalArgumentException("Username already exists!");
+        }
+
+        // Create the new user
+        UserDetails user = customerService.createNewCustomer(
+                request.username(),
+                request.email(),
+                request.password());
+        return ResponseEntity.ok(user);
+    }
+
+    record UserCreateRequest(
+            @NotBlank String username,
+            @Email String email,
+            @NotBlank String password) {}
+}package my.notes.notesApp.web.controller;
+
+import my.notes.notesApp.biz.service.CustomerService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.firewall.HttpFirewall;
+import org.springframework.security.web.firewall.StrictHttpFirewall;
+
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+public class SecurityConfig {
+
+    @Autowired
+    private CustomerService customerService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(customerService); // Link the service
+        provider.setPasswordEncoder(passwordEncoder);
+        return provider;
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
+        httpSecurity
+                .csrf(csrf -> csrf.disable())
+                .formLogin(form -> form
+                        .loginPage("/login")
+                        .permitAll())
+                .logout(logout -> logout
+                        .logoutUrl("/logout")
+                        .logoutSuccessUrl("/login?logout")
+                        .permitAll())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/users/**").hasRole("ADMIN")
+                        .anyRequest().permitAll())
+                .formLogin(form -> form.defaultSuccessUrl("/notes", true))
+                .logout(logout -> logout.logoutSuccessUrl("/login?logout"));
+        return httpSecurity.build();
+    }
+
+
+//    @Bean
+//    public HttpFirewall allowUrlEncodedSlashHttpFirewall() {
+//        StrictHttpFirewall firewall = new StrictHttpFirewall();
+//        firewall.setAllowSemicolon(true);
+//        firewall.setAllowUrlEncodedSlash(true);
+//        return firewall;
+//    }
+//
+//    @Bean
+//    public WebSecurityCustomizer webSecurityCustomizer() {
+//        return (web) -> web.httpFirewall(allowUrlEncodedSlashHttpFirewall());
+//    }
+}package my.notes.notesApp.web.controller;
+
+import jakarta.validation.Valid;
+import lombok.extern.log4j.Log4j2;
+import my.notes.notesApp.biz.model.Customer;
+import my.notes.notesApp.biz.model.Note;
+import my.notes.notesApp.biz.service.CustomerService;
+import my.notes.notesApp.biz.service.NoteService;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.*;
+
+@Controller
+@Log4j2
+@RequestMapping("/notes")
+public class NotesController {
+    private final NoteService noteService;
+    private final CustomerService customerService;
+
+    public NotesController (NoteService noteService, CustomerService customerService) {
+        this.noteService = noteService;
+        this.customerService = customerService;
+    }
+
+    @GetMapping
+    public String getAllNotes (Model model) {
+        model.addAttribute("notes", noteService.getAllNotes());
+        return "notes";
+    }
+
+    @GetMapping("/new")
+    public String showCreateNewNoteForm (Model model) {
+        model.addAttribute("note", new Note());
+        return "new";
+    }
+
+    @PostMapping
+    public String saveNote (@Valid @ModelAttribute Note note, BindingResult result) {
+        if (result.hasErrors()) {
+            return "new"; // Return form with errors
+        }
+        note.setCreator(customerService.getCurrentUser());
+        noteService.saveNote(note);
+        log.info(String.valueOf(note));
+        log.info("Note's title: {}", note.getTitle());
+        return "redirect:/notes";
+    }
+
+    @GetMapping("/{id}/edit")
+    public String showEditNoteForm(@PathVariable Long id, Model model) {
+        Note note = noteService.getNoteByID(id);
+        if (note != null) {
+            model.addAttribute("note", note);
+            log.info("Note's title: {}", note.getTitle());
+            log.info("Note's content: {}", note.getContent());
+            return "edit";
+        }
+        return "redirect:/notes";
+    }
+
+    @GetMapping("/{id}/delete")
+    public String deleteNote(@PathVariable Long id) {
+        noteService.deleteNoteByID(id);
+        return "redirect:/notes";
+    }
+}
+package my.notes.notesApp.biz.service;
+
+import lombok.extern.log4j.Log4j2;
+import my.notes.notesApp.biz.model.Customer;
+import my.notes.notesApp.data.CustomerRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Bean;
+
+@Log4j2
+@Service
+public class CustomerService implements UserDetailsService {
+
+    @Autowired
+    private CustomerRepository customerRepository;
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        // Retrieve user details by username from the database
+        Customer customer = customerRepository.findByUserName(username).getFirst();
+        if (customer == null) {
+            throw new UsernameNotFoundException("User not found with username: " + username);
+        }
+        return customer; // Assuming Customer implements UserDetails
+    }
+
+    public UserDetails createNewCustomer(String username, String email, String password) {
+        if (customerRepository.findByUserName(username).isEmpty()) {
+            String encodedPassword = passwordEncoder().encode(password);
+            Customer customer = Customer.builder()
+                    .userName(username)
+                    .email(email)
+                    .password(encodedPassword)
+                    .authorities("ROLE_STUDENT") // Assign default authority
+                    .build();
+
+            customerRepository.save(customer);
+            return customer;
+        } else {
+            throw new IllegalArgumentException("Username already exists!");
+        }
+    }
+
+    public Customer getCurrentUser() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return customerRepository.findByUserName(username).getFirst(); // TODO: think about handling exception here
+    }
+}package my.notes.notesApp.biz.service;
+
+import my.notes.notesApp.biz.model.Customer;
+import my.notes.notesApp.biz.model.Note;
+import my.notes.notesApp.data.NoteRepository;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+
+import java.util.MissingResourceException;
+import java.util.stream.Stream;
+
+@Service
+public class NoteService {
+    private final NoteRepository noteRepository;
+    private final CustomerService customerService;
+
+    public NoteService (NoteRepository noteRepository, CustomerService customerService) {
+        this.noteRepository = noteRepository;
+        this.customerService = customerService;
+    }
+
+    public Iterable<Note> getAllNotes () {
+        Customer currentUser = customerService.getCurrentUser();
+
+        // If the user is an admin, return all notes
+        if (currentUser.getAuthorities().contains("ROLE_ADMIN")) { // TODO: think of adding exception handling here
+            return noteRepository.findAll();
+        }
+
+        // Otherwise, return only the notes created by the current user
+        return Stream.of(noteRepository.findById(currentUser.getId())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found")))
+                .toList();
+    }
+
+    public Note getNoteByID(Long id) {
+        Customer currentUser = customerService.getCurrentUser();
+        Note noteToReturn = noteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Note not found"));
+
+        if (!noteToReturn.getCreator().getId().equals(currentUser.getId()) &&
+                !currentUser.getAuthorities().contains("ROLE_ADMIN")) {
+            throw new AccessDeniedException("You do not have permission to view this note");
+        }
+        return noteToReturn;
+    }
+
+    public Note saveNote (Note note) {
+        Note savedNote = noteRepository.save(note);
+        return savedNote;
+    }
+
+    public void deleteNoteByID (Long id) {
+        noteRepository.deleteById(id);
+    }
+}
+package my.notes.notesApp.biz.model;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Entity
+public class Note {
+
+    @Id
+    @GeneratedValue
+    private Long id;
+
+    private String content;
+
+    private String title;
+
+    private LocalDateTime createdAt;
+
+    @ManyToOne
+    @JoinColumn(name="user_id")
+    private Customer creator;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
+}
+
+package my.notes.notesApp.biz.model;
+
+import jakarta.persistence.*;
+import lombok.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.stream.Collectors;
+
+@Entity
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
+public class Customer implements UserDetails {
+
+    // Delimiter used to split authorities string
+    private static final String AUTHORITIES_DELIMITER = "::";
+
+    @Id
+    @GeneratedValue
+    private Long id;
+    private String userName;
+    private String email;
+    private String password;
+    private String authorities;
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        // Split the authorities string and convert to a list of SimpleGrantedAuthority objects
+        return Arrays.stream(this.authorities.split(AUTHORITIES_DELIMITER))
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public String getPassword() {
+        return password;
+    }
+
+    @Override
+    public String getUsername() {
+        return userName;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+}package my.notes.notesApp;
+
+import my.notes.notesApp.biz.model.Customer;
+import my.notes.notesApp.biz.model.Note;
+import my.notes.notesApp.data.CustomerRepository;
+import my.notes.notesApp.data.NoteRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+
+@SpringBootApplication
+public class NotesJavaApp {
+	private static final Logger log = LoggerFactory.getLogger(NotesJavaApp.class);
+
+	public static void main(String[] args) {
+		SpringApplication.run(NotesJavaApp.class, args);
+	}
+
+	@Bean
+	public CommandLineRunner demo(CustomerRepository customerRepository,
+								  NoteRepository noteRepository,
+								  PasswordEncoder passwordEncoder,
+								  Environment env) {
+		return args -> {
+			// Only run initialization if no users exist
+			if (customerRepository.count() == 0) {
+				log.info("No users found. Starting database initialization...");
+				initializeUsers(customerRepository, passwordEncoder, env);
+				initializeNotes(noteRepository, customerRepository, env);
+				log.info("Database initialization completed successfully.");
+			} else {
+				log.info("Users already exist. Skipping database initialization.");
+			}
+		};
+	}
+
+	private void initializeUsers(CustomerRepository customerRepository,
+								 PasswordEncoder passwordEncoder,
+								 Environment env) {
+		try {
+			Customer admin = new Customer(
+					null,
+					getRequiredEnvVariable(env, "ADMIN_USERNAME"),
+					getRequiredEnvVariable(env, "ADMIN_EMAIL"),
+					passwordEncoder.encode(getRequiredEnvVariable(env, "ADMIN_PASSWORD")),
+					"ROLE_ADMIN"
+			);
+
+			Customer student = new Customer(
+					null,
+					getRequiredEnvVariable(env, "STUDENT_USERNAME"),
+					getRequiredEnvVariable(env, "STUDENT_EMAIL"),
+					passwordEncoder.encode(getRequiredEnvVariable(env, "STUDENT_PASSWORD")),
+					"ROLE_STUDENT"
+			);
+
+			List<Customer> users = Arrays.asList(admin, student);
+			customerRepository.saveAll(users);
+
+			log.info("Created users:");
+			users.forEach(user -> log.info(user.toString()));
+
+		} catch (IllegalStateException e) {
+			log.error("Failed to initialize users: {}", e.getMessage());
+			throw e;
+		}
+	}
+
+	private void initializeNotes(NoteRepository noteRepository,
+								 CustomerRepository customerRepository,
+								 Environment env) {
+		try {
+			Customer admin = customerRepository.findByUserName(
+					getRequiredEnvVariable(env, "ADMIN_USERNAME")).getFirst();
+
+			Customer student = customerRepository.findByUserName(
+					getRequiredEnvVariable(env, "STUDENT_USERNAME")).getFirst();
+
+			if (admin == null || student == null) {
+				throw new IllegalStateException("Failed to retrieve users from database");
+			}
+
+			List<Note> notes = Arrays.asList(
+					new Note(null,
+							"My test note's content",
+							"Admin's note",
+							LocalDateTime.now(),
+							admin),
+					new Note(null,
+							"my content ABCDEFG",
+							"Student's note",
+							LocalDateTime.now(),
+							student)
+			);
+
+			noteRepository.saveAll(notes);
+			log.info("Created {} sample notes", notes.size());
+
+		} catch (IllegalStateException e) {
+			log.error("Failed to initialize notes: {}", e.getMessage());
+			throw e;
+		}
+	}
+
+	private String getRequiredEnvVariable(Environment env, String variableName) {
+		String value = env.getProperty(variableName);
+		if (value == null || value.trim().isEmpty()) {
+			throw new IllegalStateException(
+					String.format("Required environment variable '%s' is not set", variableName)
+			);
+		}
+		return value;
+	}
+}package my.notes.notesApp;
+
+import jakarta.transaction.Transactional;
+import my.notes.notesApp.biz.model.Customer;
+import my.notes.notesApp.biz.model.Note;
+import my.notes.notesApp.biz.service.NoteService;
+import my.notes.notesApp.data.CustomerRepository;
+import my.notes.notesApp.data.NoteRepository;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.annotation.Rollback;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@SpringBootTest
+@Transactional // https://docs.spring.io/spring-framework/reference/testing/testcontext-framework/tx.html
+@Rollback
+class NotesAppTests {
+
+	@Autowired
+	private CustomerRepository customerRepository;
+	@Autowired
+	private NoteRepository noteRepository;
+	@Autowired
+	private PasswordEncoder passwordEncoder;
+
+//	@Autowired
+//	private DataSource dataSource;
+//	@Autowired
+//	private JdbcTemplate jdbcTemplate;
+
+	@Test
+	void contextLoads() {
+	}
+
+	@Test
+	void canSaveNewCustomer() {
+		Customer savedCustomer = customerRepository.save(new Customer(null,"student_username","student@student.student",passwordEncoder.encode("studentpassword"),"ROLE_STUDENT"));
+		assertThat(savedCustomer.getUsername()).isEqualTo("student_username");
+	}
+
+	@Test
+	void canFindByUsername() {
+		Customer savedCustomer = customerRepository.save(new Customer(null,"student_username","student@student.student",passwordEncoder.encode("studentpassword"),"ROLE_STUDENT"));
+		Customer customerUserName = customerRepository.findByUserName(savedCustomer.getUsername()).getFirst();
+		assertThat(customerUserName.getUsername()).isEqualTo("student_username");
+	}
+
+//	@Test
+//	void canSaveNotes() {
+//		Customer newCustomer = new Customer(null,"student_username","student@student.student",
+//				passwordEncoder.encode("studentpassword"),"ROLE_STUDENT");
+//		customerRepository.save(newCustomer);
+//		Note newNote = new Note(null, "My test note's content 123 7654", "Student's note",
+//				LocalDateTime.now(), newCustomer);
+//		Note test1 = new Note()
+//		noteRepository.save(newNote);
+//		System.out.printf("The saved note is: ", noteRepository.findById(newCustomer.getId()).get().getContent());
+////		assertThat(savedNote.get().getContent().toString()).isEqualTo("My test note's content 123 7654");
+//	}
+
+//	@Test
+//	void canGetNotes() {
+//		String expectedContentForNote1 = "This is a note1 for canGetNotes test";
+//		String expectedContentForNote2 = "This is a note2 for canGetNotes test";
+//		Note savedNote1 = noteRepository.save(new Note(null, "My test note's content", "Admin's note", LocalDateTime.now(), customerRepository.findByUserName(System.getenv("ADMIN_USERNAME")).getFirst()));
+//		Note savedNote2 = noteRepository.save(new Note(null, "My test note's content", "User's note", LocalDateTime.now(), customerRepository.findByUserName(System.getenv("STUDENT_USERNAME")).getFirst()));
+//		Optional<Note> note1Id = noteRepository.findById(savedNote1.getId());
+//		Optional<Note> note2Id = noteRepository.findById(savedNote2.getId());
+//		assertThat(note1Id.get().getContent()).isEqualTo(expectedContentForNote1);
+//		assertThat(note2Id.get().getContent()).isEqualTo(expectedContentForNote2);
+//	}
+
+//	void canEditNotes() {
+//
+//	}
+}
