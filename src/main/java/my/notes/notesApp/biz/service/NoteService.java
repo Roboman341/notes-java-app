@@ -49,6 +49,11 @@ public class NoteService {
         return savedNote;
     }
 
+    public void deleteAllNotesByCreator(Customer customer){
+        Iterable<Note> byCreator = noteRepository.findByCreator(customer);
+        byCreator.forEach(note -> noteRepository.deleteById(note.getId()));
+    }
+
     public void deleteNoteByID (Long id) {
         noteRepository.deleteById(id);
     }

@@ -23,6 +23,8 @@ class NotesAppTests {
 	private NoteRepository noteRepository;
 	@Autowired
 	private PasswordEncoder passwordEncoder;
+	@Autowired
+	private NoteService noteService;
 
 	@Test
 	void contextLoads() {
@@ -42,6 +44,12 @@ class NotesAppTests {
 	}
 
 	@Test
+	@Disabled
+	void canDeleteCustomer() {
+
+	}
+
+	@Test
 	void canSaveAndRetrieveNotes() {
 		Customer newCustomer = new Customer(null,"student_username","student@student.student",
 				passwordEncoder.encode("studentpassword"),"ROLE_STUDENT");
@@ -54,7 +62,25 @@ class NotesAppTests {
 	}
 
 	@Test
-	@Disabled
 	void canDeleteNote () {
+		Customer customer = new Customer(null, "test1", "test@mail.com", passwordEncoder.encode("1231231"), "ROLE_STUDENT");
+		customerRepository.save(customer);
+		noteRepository.save(new Note(null, "This is a test note to be deleted", "Note's title", LocalDateTime.now(), customer));
+		Iterable<Note> byCreator = noteRepository.findByCreator(customer);
+		byCreator.forEach(note -> {
+			if (note.getContent().equals("This is a test note to be deleted")) {
+				noteRepository.deleteById(note.getId());
+			}
+		});
+		assertThat(noteRepository.findByCreator(customer)).isEmpty();
+	}
+
+	@Test
+	void canDeleteAllNotes () {
+		Customer customer = new Customer(null, "test1", "test@mail.com", passwordEncoder.encode("1231231"), "ROLE_STUDENT");
+		customerRepository.save(customer);
+		noteRepository.save(new Note(null, "This is a test note", "Note's title", LocalDateTime.now(), customer));
+		noteService.deleteAllNotesByCreator(customer);
+		assertThat(noteRepository.findByCreator(customer)).isEmpty();
 	}
 }
