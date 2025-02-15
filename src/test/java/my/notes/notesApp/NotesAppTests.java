@@ -1,6 +1,5 @@
 package my.notes.notesApp;
 
-import jakarta.transaction.Transactional;
 import my.notes.notesApp.biz.model.Customer;
 import my.notes.notesApp.biz.model.Note;
 import my.notes.notesApp.biz.service.NoteService;
