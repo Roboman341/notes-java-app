@@ -16,13 +16,13 @@ import org.springframework.context.annotation.Bean;
 @Log4j2
 @Service
 public class CustomerService implements UserDetailsService {
+    private final CustomerRepository customerRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    private CustomerRepository customerRepository;
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+    public CustomerService(CustomerRepository customerRepository, PasswordEncoder passwordEncoder) {
+        this.customerRepository = customerRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -37,7 +37,7 @@ public class CustomerService implements UserDetailsService {
 
     public UserDetails createNewCustomer(String username, String email, String password) {
         if (customerRepository.findByUserName(username).isEmpty()) {
-            String encodedPassword = passwordEncoder().encode(password);
+            String encodedPassword = passwordEncoder.encode(password);
             Customer customer = Customer.builder()
                     .userName(username)
                     .email(email)

@@ -11,6 +11,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -21,53 +22,46 @@ import org.springframework.security.web.firewall.StrictHttpFirewall;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-
-    @Autowired
     private CustomerService customerService;
-
-    @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(customerService); // Link the service
-        provider.setPasswordEncoder(passwordEncoder);
-        return provider;
+    @Autowired
+    public SecurityConfig(CustomerService customerService, PasswordEncoder passwordEncoder) {
+        this.customerService = customerService;
+        this.passwordEncoder = passwordEncoder;
     }
 
-    //TODO: refactor according to https://docs.spring.io/spring-security/reference/servlet/configuration/java.html
+    @Bean
+    public UserDetailsService userDetailsService() {
+        return customerService;
+    }
+
+//    Uses CustomerService as the UserDetailsService
+//    Uses the configured PasswordEncoder
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(userDetailsService());
+        authProvider.setPasswordEncoder(passwordEncoder);
+        return authProvider;
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity
-                .csrf(csrf -> csrf.disable())
+                .authenticationProvider(authenticationProvider()) // Connected the authentication provider to the security chain
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/login", "/register", "/logout").permitAll()
+                        .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/api/users/**").hasAuthority("ROLE_ADMIN")
+                        .anyRequest().authenticated())
                 .formLogin(form -> form
                         .loginPage("/login")
+                        .defaultSuccessUrl("/notes", true)
                         .permitAll())
                 .logout(logout -> logout
-                        .logoutUrl("/logout")
                         .logoutSuccessUrl("/login?logout")
-                        .permitAll())
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/users/**").hasRole("ADMIN")
-                        .anyRequest().permitAll())
-                .formLogin(form -> form.defaultSuccessUrl("/notes", true))
-                .logout(logout -> logout.logoutSuccessUrl("/login?logout"));
+                        .permitAll());
         return httpSecurity.build();
     }
-
-
-//    @Bean
-//    public HttpFirewall allowUrlEncodedSlashHttpFirewall() {
-//        StrictHttpFirewall firewall = new StrictHttpFirewall();
-//        firewall.setAllowSemicolon(true);
-//        firewall.setAllowUrlEncodedSlash(true);
-//        return firewall;
-//    }
-//
-//    @Bean
-//    public WebSecurityCustomizer webSecurityCustomizer() {
-//        return (web) -> web.httpFirewall(allowUrlEncodedSlashHttpFirewall());
-//    }
 }
