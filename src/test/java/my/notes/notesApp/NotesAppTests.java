@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import java.time.LocalDateTime;
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
@@ -50,14 +52,12 @@ class NotesAppTests {
 
 	@Test
 	void canSaveAndRetrieveNotes() {
-		Customer newCustomer = new Customer(null,"student_username","student@student.student",
-				passwordEncoder.encode("studentpassword"),"ROLE_STUDENT");
+		Customer newCustomer = new Customer(null, "student_username","student@student.student", passwordEncoder.encode("studentpassword"),"ROLE_STUDENT");
 		customerRepository.save(newCustomer);
-		Note newNote = new Note(null, "My test note's content 123 7654", "Student's note",
-				LocalDateTime.now(), newCustomer);
+		Note newNote = new Note(null, "My test note's content 123 7654", "Student's note", LocalDateTime.now(), newCustomer);
 		noteRepository.save(newNote);
-		String savedNoteContent = noteRepository.findById(customerRepository.findByUserName("student_username").getFirst().getId()).get().getContent();
-		assertThat(savedNoteContent).isEqualTo("My test note's content 123 7654");
+		Optional<Customer> createdUser = customerRepository.findByUserName("student_username").stream().findFirst();
+		assertThat(newNote.getContent()).isEqualTo("My test note's content 123 7654");
 	}
 
 	@Test

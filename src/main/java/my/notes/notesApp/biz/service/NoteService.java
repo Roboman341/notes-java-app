@@ -1,5 +1,6 @@
 package my.notes.notesApp.biz.service;
 
+import lombok.extern.slf4j.Slf4j;
 import my.notes.notesApp.biz.model.Customer;
 import my.notes.notesApp.biz.model.Note;
 import my.notes.notesApp.data.NoteRepository;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.util.MissingResourceException;
 import java.util.stream.Stream;
 
+@Slf4j
 @Service
 public class NoteService {
     private final NoteRepository noteRepository;
@@ -20,15 +22,12 @@ public class NoteService {
         this.customerService = customerService;
     }
 
-    public Iterable<Note> getAllNotes () {
-        Customer currentUser = customerService.getCurrentUser();
-
-        // If the user is an admin, return all notes
-        if (currentUser.getAuthorities().contains("ROLE_ADMIN")) { // TODO: think of adding exception handling here
-            return noteRepository.findAll();
-        }
-
-        return noteRepository.findByCreator(currentUser);
+    public Iterable<Note> getAllNotes (Customer customer) {
+        // If the user is an admin, return all notes. Comment out for now.
+//        if (customer.getAuthorities().stream().anyMatch(i -> i.getAuthority().equals("ROLE_ADMIN"))) {
+//            return noteRepository.findAll();
+//        }
+        return noteRepository.findByCreator(customer);
     }
 
     public Note getNoteByID(Long id) {

@@ -26,8 +26,9 @@ public class NotesController {
     @GetMapping
     public String getAllNotes (Model model) {
         Customer currentUser = customerService.getCurrentUser();
-        model.addAttribute("notes", noteService.getAllNotes());
+        model.addAttribute("notes", noteService.getAllNotes(currentUser));
         model.addAttribute("currentUser", currentUser);
+        log.info("User: {} with authorities: {} requested their notes", currentUser.getUsername(), currentUser.getAuthorities());
         return "notes";
     }
 
