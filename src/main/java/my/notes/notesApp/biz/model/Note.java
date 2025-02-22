@@ -24,7 +24,7 @@ public class Note {
     private LocalDateTime createdAt;
 
     @ManyToOne
-    @JoinColumn(name="user_id")
+    @JoinColumn(name="customer_creator_id")
     private Customer creator;
 
     @PrePersist
