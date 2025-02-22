@@ -29,10 +29,10 @@ public class SecurityController {
         return "placeholder";
     }
 
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_STUDENT')")
-    @GetMapping("/student")
-    public String student(Model model){
-        model.addAttribute("message", "This is Student");
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_USER')")
+    @GetMapping("/user")
+    public String user(Model model){
+        model.addAttribute("message", "This is User");
         return "placeholder";
     }
 

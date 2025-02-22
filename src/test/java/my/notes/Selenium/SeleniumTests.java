@@ -133,7 +133,7 @@ public class SeleniumTests {
     }
 
     @Test
-    public void loginAsStudent() {
+    public void loginAsUser() {
         driver.get("http://localhost:8080/login");
         WebElement loginForm = driver.findElement(By.id("loginForm"));
         Wait<WebDriver> wait = new WebDriverWait(driver, Duration.ofSeconds(2));
@@ -141,8 +141,8 @@ public class SeleniumTests {
 
         WebElement userNameField = driver.findElement(By.name("username"));
         WebElement userPassword = driver.findElement(By.name("password"));
-        userNameField.sendKeys(dotenv.get("STUDENT_USERNAME"));
-        userPassword.sendKeys(dotenv.get("STUDENT_PASSWORD"));
+        userNameField.sendKeys(dotenv.get("USER_USERNAME"));
+        userPassword.sendKeys(dotenv.get("USER_PASSWORD"));
 
         WebElement submitButton = driver.findElement(By.cssSelector("button"));
         submitButton.click();
@@ -154,7 +154,7 @@ public class SeleniumTests {
     }
 
     @Test
-    public void createDeleteAndEditNoteAsStudent() {
+    public void createDeleteAndEditNoteAsUser() {
         driver.get("http://localhost:8080/login");
         WebElement loginForm = driver.findElement(By.id("loginForm"));
         Wait<WebDriver> wait = new WebDriverWait(driver, Duration.ofSeconds(2));
@@ -162,8 +162,8 @@ public class SeleniumTests {
 
         WebElement userNameField = driver.findElement(By.name("username"));
         WebElement userPassword = driver.findElement(By.name("password"));
-        userNameField.sendKeys(dotenv.get("STUDENT_USERNAME"));
-        userPassword.sendKeys(dotenv.get("STUDENT_PASSWORD"));
+        userNameField.sendKeys(dotenv.get("USER_USERNAME"));
+        userPassword.sendKeys(dotenv.get("USER_PASSWORD"));
 
         WebElement submitButton = driver.findElement(By.cssSelector("button"));
         submitButton.click();

@@ -5,11 +5,7 @@ import my.notes.notesApp.biz.model.Customer;
 import my.notes.notesApp.biz.model.Note;
 import my.notes.notesApp.data.NoteRepository;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-
-import java.util.MissingResourceException;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -44,13 +40,17 @@ public class NoteService {
 
     public Note saveNote (Note note) {
         note.setCreator(customerService.getCurrentUser()); // Set creator before saving
-        Note savedNote = noteRepository.save(note);
-        return savedNote;
+        return noteRepository.save(note);
     }
 
     public void deleteAllNotesByCreator(Customer customer){
         Iterable<Note> byCreator = noteRepository.findByCreator(customer);
-        byCreator.forEach(note -> noteRepository.deleteById(note.getId()));
+        if (byCreator.iterator().hasNext()) {
+            byCreator.forEach(note -> noteRepository.deleteById(note.getId()));
+        }
+        else {
+            log.info("There is no notes for this user: {}", customer.getUsername());
+        }
     }
 
     public void deleteNoteByID (Long id) {

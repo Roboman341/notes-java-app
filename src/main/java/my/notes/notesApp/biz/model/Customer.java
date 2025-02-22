@@ -6,36 +6,40 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Entity
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Customer implements UserDetails {
-
-    // Delimiter used to split authorities string
-    private static final String AUTHORITIES_DELIMITER = "::";
 
     @Id
     @GeneratedValue
     private Long id;
+
+    @Column(unique = true)
     private String userName;
     private String email;
+
     private String password;
-    private String authorities;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "customer_roles",
+            joinColumns = @JoinColumn(name = "customer_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles = new HashSet<>();
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Split the authorities string and convert to a list of SimpleGrantedAuthority objects
-        return Arrays.stream(this.authorities.split(AUTHORITIES_DELIMITER))
-                .map(SimpleGrantedAuthority::new)
-                .collect(Collectors.toList());
+        return roles.stream()
+                .map(role -> new SimpleGrantedAuthority(role.getName()))
+                .collect(Collectors.toSet());
     }
 
     @Override

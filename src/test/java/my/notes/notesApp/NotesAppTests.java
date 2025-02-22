@@ -1,17 +1,23 @@
 package my.notes.notesApp;
 
+import jakarta.transaction.Transactional;
 import my.notes.notesApp.biz.model.Customer;
 import my.notes.notesApp.biz.model.Note;
+import my.notes.notesApp.biz.service.CustomerService;
 import my.notes.notesApp.biz.service.NoteService;
-import my.notes.notesApp.data.CustomerRepository;
 import my.notes.notesApp.data.NoteRepository;
+import my.notes.notesApp.data.RoleRepository;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -19,29 +25,37 @@ import static org.assertj.core.api.Assertions.assertThat;
 class NotesAppTests {
 
 	@Autowired
-	private CustomerRepository customerRepository;
+	private CustomerService customerService;
 	@Autowired
 	private NoteRepository noteRepository;
 	@Autowired
 	private PasswordEncoder passwordEncoder;
 	@Autowired
 	private NoteService noteService;
+	@Autowired
+	private RoleRepository roleRepository;
 
 	@Test
-	void contextLoads() {
-	}
-
-	@Test
+	@Transactional
 	void canSaveNewCustomer() {
-		Customer savedCustomer = customerRepository.save(new Customer(null,"student_username","student@student.student",passwordEncoder.encode("studentpassword"),"ROLE_STUDENT"));
-		assertThat(savedCustomer.getUsername()).isEqualTo("student_username");
+		UserDetails savedCustomer = customerService.createNewCustomer(
+				"user_username_for_tests",
+				"user_for_tests@user.user",
+				passwordEncoder.encode("user_password"));
+		customerService.addRoleToCustomer(savedCustomer.getUsername(), "ROLE_USER");
+		assertThat(savedCustomer.getUsername()).isEqualTo("user_username_for_tests");
 	}
 
 	@Test
+	@Transactional
 	void canFindByUsername() {
-		Customer savedCustomer = customerRepository.save(new Customer(null,"student_username","student@student.student",passwordEncoder.encode("studentpassword"),"ROLE_STUDENT"));
-		Customer customerUserName = customerRepository.findByUserName(savedCustomer.getUsername()).getFirst();
-		assertThat(customerUserName.getUsername()).isEqualTo("student_username");
+		UserDetails savedCustomer = customerService.createNewCustomer(
+				"user_username_for_tests",
+				"user_for_tests@user.user",
+				passwordEncoder.encode("user_password"));
+		customerService.addRoleToCustomer(savedCustomer.getUsername(), "ROLE_USER");
+		UserDetails customerUserName = customerService.loadUserByUsername(savedCustomer.getUsername());
+		assertThat(customerUserName.getUsername()).isEqualTo("user_username_for_tests");
 	}
 
 	@Test
@@ -51,35 +65,72 @@ class NotesAppTests {
 	}
 
 	@Test
+	@Transactional
 	void canSaveAndRetrieveNotes() {
-		Customer newCustomer = new Customer(null, "student_username","student@student.student", passwordEncoder.encode("studentpassword"),"ROLE_STUDENT");
-		customerRepository.save(newCustomer);
-		Note newNote = new Note(null, "My test note's content 123 7654", "Student's note", LocalDateTime.now(), newCustomer);
-		noteRepository.save(newNote);
-		Optional<Customer> createdUser = customerRepository.findByUserName("student_username").stream().findFirst();
+		UserDetails savedCustomer = customerService.createNewCustomer(
+				"user_username_for_tests",
+				"user_for_tests@user.user",
+				passwordEncoder.encode("user_password"));
+
+		// Set up the Security Context with the test user
+		Authentication authentication = new UsernamePasswordAuthenticationToken(
+				savedCustomer.getUsername(),
+				savedCustomer.getPassword(),
+				savedCustomer.getAuthorities()
+		);
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+		UserDetails customerUserName = customerService.loadUserByUsername(savedCustomer.getUsername());
+		Note newNote = new Note(null, "My test note's content 123 7654", "User's note", LocalDateTime.now(), (Customer) customerUserName);
+		noteService.saveNote(newNote);
+
 		assertThat(newNote.getContent()).isEqualTo("My test note's content 123 7654");
+		SecurityContextHolder.clearContext();
+		customerService.deleteUserByUsername("user_username_for_tests");
 	}
 
 	@Test
+	@Transactional
 	void canDeleteNote () {
-		Customer customer = new Customer(null, "test1", "test@mail.com", passwordEncoder.encode("1231231"), "ROLE_STUDENT");
-		customerRepository.save(customer);
-		noteRepository.save(new Note(null, "This is a test note to be deleted", "Note's title", LocalDateTime.now(), customer));
-		Iterable<Note> byCreator = noteRepository.findByCreator(customer);
-		byCreator.forEach(note -> {
-			if (note.getContent().equals("This is a test note to be deleted")) {
-				noteRepository.deleteById(note.getId());
-			}
-		});
-		assertThat(noteRepository.findByCreator(customer)).isEmpty();
+		UserDetails savedCustomer = customerService.createNewCustomer(
+				"user_username_for_tests1",
+				"user_for_tests@user.user",
+				passwordEncoder.encode("user_password"));
+		UserDetails customerUserName = customerService.loadUserByUsername(savedCustomer.getUsername());
+
+		Authentication authentication = new UsernamePasswordAuthenticationToken(
+				savedCustomer.getUsername(),
+				savedCustomer.getPassword(),
+				savedCustomer.getAuthorities()
+		);
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+		Note newNote = new Note(null, "My test note's content 123 7654", "User's note", LocalDateTime.now(), (Customer) customerUserName);
+		noteService.saveNote(newNote);
+
+		noteService.deleteNoteByID(newNote.getId());
+		assertThat(noteRepository.findByCreator((Customer) customerUserName)).isEmpty();
+		SecurityContextHolder.clearContext();
 	}
 
 	@Test
+	@Transactional
 	void canDeleteAllNotes () {
-		Customer customer = new Customer(null, "test1", "test@mail.com", passwordEncoder.encode("1231231"), "ROLE_STUDENT");
-		customerRepository.save(customer);
-		noteRepository.save(new Note(null, "This is a test note", "Note's title", LocalDateTime.now(), customer));
-		noteService.deleteAllNotesByCreator(customer);
-		assertThat(noteRepository.findByCreator(customer)).isEmpty();
+		UserDetails savedCustomer = customerService.createNewCustomer(
+				"user_username_for_tests2",
+				"user_for_tests@user.user",
+				passwordEncoder.encode("user_password"));
+		UserDetails customerUserName = customerService.loadUserByUsername(savedCustomer.getUsername());
+
+		Authentication authentication = new UsernamePasswordAuthenticationToken(
+				savedCustomer.getUsername(),
+				savedCustomer.getPassword(),
+				savedCustomer.getAuthorities()
+		);
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+		noteService.saveNote(new Note(null, "My test note's content 312", "User's note", LocalDateTime.now(), (Customer) customerUserName));
+		noteService.saveNote(new Note(null, "My test note's content 1", "User's note", LocalDateTime.now(), (Customer) customerUserName));
+		noteService.saveNote(new Note(null, "My test note", "User's note", LocalDateTime.now(), (Customer) customerUserName));
+
+		noteService.deleteAllNotesByCreator((Customer) customerUserName);
+		assertThat(noteRepository.findByCreator((Customer) customerUserName)).isEmpty();
 	}
 }
