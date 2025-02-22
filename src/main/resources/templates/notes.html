@@ -9,16 +9,21 @@
 <body>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <div class="container mt-5">
-  <h1>My Notes</h1>
-  <a href="/notes/new" class="btn btn-primary mb-3">Create Note</a>
-  <div class="row">
+  <div class="alert alert-info">
+    Logged in as: <strong th:text="${currentUser.Username}"></strong> |
+    Email: <strong th:text="${currentUser.email}"></strong>
+  </div>
+  <h1 id="myNotesHeader">My Notes</h1>
+  <a href="/notes/new" class="btn btn-primary mb-3" id="createNoteButton">Create Note</a>
+  <div class="row" id="notesList">
     <div class="col-md-4" th:each="note : ${notes}">
       <div class="card mb-3">
         <div class="card-body">
-          <h5 class="card-title" th:text="${note.title}"></h5>
-          <p class="card-text" th:text="${note.content}"></p>
+          <h5 class="card-title" th:text="${note.title}" id="eachNoteTitle"></h5>
+          <p class="card-text" th:text="${note.content}" id="eachNoteContent"></p>
           <a th:href="@{/notes/{id}/edit(id=${note.id})}" class="btn btn-sm btn-primary">Edit</a>
           <a th:href="@{/notes/{id}/delete(id=${note.id})}" class="btn btn-sm btn-danger">Delete</a>
+          <p>Created: <span th:text="${#temporals.format(note.createdAt, 'dd-MM-yyyy HH:mm')}"></span></p>
         </div>
       </div>
     </div>

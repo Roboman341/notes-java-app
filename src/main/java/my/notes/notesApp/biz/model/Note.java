@@ -1,9 +1,6 @@
 package my.notes.notesApp.biz.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,13 +17,15 @@ public class Note {
     @GeneratedValue
     private Long id;
 
-    private String owner;
-
     private String content;
 
     private String title;
 
     private LocalDateTime createdAt;
+
+    @ManyToOne
+    @JoinColumn(name="user_id")
+    private Customer creator;
 
     @PrePersist
     protected void onCreate() {
