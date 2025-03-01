@@ -13,7 +13,10 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 @Builder
 @NoArgsConstructor
-@Data // Includes @Getter, @Setter, @ToString, @EqualsAndHashCode
+@Getter // Use individual annotations instead of @Data due to LazyInitializationException
+@Setter
+@EqualsAndHashCode(exclude = {"notes", "roles"}) // to prevent lazy loading issues with equals and hashCode
+@ToString(exclude = {"notes"}) // to exclude the notes collection from toString() generation
 public class Customer implements UserDetails {
 
     @Id
@@ -25,12 +28,17 @@ public class Customer implements UserDetails {
     private String email;
     private String password;
 
+    @OneToMany(mappedBy = "creator", cascade = CascadeType.ALL, orphanRemoval = true) // Keep lazy loading but exclude from toString
+    @Builder.Default // ensures that when using Customer.builder(), the notes and roles fields are initialized properly instead of being null
+    private Set<Note> notes = new HashSet<>();
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "customer_roles",
             joinColumns = @JoinColumn(name = "customer_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
+    @Builder.Default
     private Set<Role> roles = new HashSet<>();
 
     @Override
