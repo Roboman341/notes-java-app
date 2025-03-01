@@ -28,6 +28,8 @@ public class NotesController {
         Customer currentUser = customerService.getCurrentUser();
         model.addAttribute("notes", noteService.getAllNotes(currentUser));
         model.addAttribute("currentUser", currentUser);
+        model.addAttribute("isAdmin", customerService.isAdmin(currentUser));
+        log.info("isAdmin: {}", customerService.isAdmin(currentUser));
         log.info("User: {} with authorities: {} requested their notes", currentUser.getUsername(), currentUser.getAuthorities());
         return "notes/notes"; // html file within a folder
     }

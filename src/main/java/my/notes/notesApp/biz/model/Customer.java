@@ -10,11 +10,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Entity
-@Getter
-@Setter
-@NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@NoArgsConstructor
+@Data // Includes @Getter, @Setter, @ToString, @EqualsAndHashCode
 public class Customer implements UserDetails {
 
     @Id
@@ -22,9 +21,8 @@ public class Customer implements UserDetails {
     private Long id;
 
     @Column(unique = true)
-    private String userName;
+    private String username;
     private String email;
-
     private String password;
 
     @ManyToMany(fetch = FetchType.EAGER)
@@ -40,16 +38,6 @@ public class Customer implements UserDetails {
         return roles.stream()
                 .map(role -> new SimpleGrantedAuthority(role.getName()))
                 .collect(Collectors.toSet());
-    }
-
-    @Override
-    public String getPassword() {
-        return password;
-    }
-
-    @Override
-    public String getUsername() {
-        return userName;
     }
 
     @Override
