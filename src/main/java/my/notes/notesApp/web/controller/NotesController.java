@@ -28,20 +28,22 @@ public class NotesController {
         Customer currentUser = customerService.getCurrentUser();
         model.addAttribute("notes", noteService.getAllNotes(currentUser));
         model.addAttribute("currentUser", currentUser);
+        model.addAttribute("isAdmin", customerService.isAdmin(currentUser));
+        log.info("isAdmin: {}", customerService.isAdmin(currentUser));
         log.info("User: {} with authorities: {} requested their notes", currentUser.getUsername(), currentUser.getAuthorities());
-        return "notes";
+        return "notes/notes"; // html file within a folder
     }
 
     @GetMapping("/new")
     public String showCreateNewNoteForm (Model model) {
         model.addAttribute("note", new Note());
-        return "new";
+        return "notes/new-note"; // html file within a folder
     }
 
     @PostMapping
     public String saveNote (@Valid @ModelAttribute Note note, BindingResult result) {
         if (result.hasErrors()) {
-            return "new"; // Return form with errors
+            return "new-note"; // html file within a folder
         }
         note.setCreator(customerService.getCurrentUser());
         noteService.saveNote(note);
@@ -57,7 +59,7 @@ public class NotesController {
             model.addAttribute("note", note);
             log.info("Note's title: {}", note.getTitle());
             log.info("Note's content: {}", note.getContent());
-            return "edit";
+            return "notes/edit-note"; // html file within a folder
         }
         return "redirect:/notes";
     }

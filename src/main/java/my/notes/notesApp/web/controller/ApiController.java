@@ -37,7 +37,7 @@ public class ApiController {
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<UserDetails> createUser(@RequestBody @Valid UserCreateRequest request) {
-        if (!customerRepository.findByUserName(request.username()).isEmpty()) {
+        if (!customerRepository.findByUsername(request.username()).isEmpty()) {
             throw new IllegalArgumentException("Username already exists!");
         }
 

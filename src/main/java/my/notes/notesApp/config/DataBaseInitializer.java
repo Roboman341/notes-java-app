@@ -102,7 +102,18 @@ public class DataBaseInitializer {
                     environment.getProperty("USER_EMAIL"),
                     environment.getProperty("USER_PASSWORD")
             );
-            customerService.addRoleToCustomer(newUser.getUsername(),"ROLE_ADMIN");
+            customerService.addRoleToCustomer(newUser.getUsername(),"ROLE_USER");
+            log.info("Creating new user: {}", newUser.getUsername());
+        }
+        try {
+            customerService.loadUserByUsername(environment.getProperty("TEST_USER_USERNAME"));
+        } catch (UsernameNotFoundException e) {
+            UserDetails newUser = customerService.createNewCustomer(
+                    environment.getProperty("TEST_USER_USERNAME"),
+                    environment.getProperty("TEST_USER_PASSWORD"),
+                    environment.getProperty("TEST_USER_EMAIL")
+            );
+            customerService.addRoleToCustomer(newUser.getUsername(),"ROLE_USER");
             log.info("Creating new user: {}", newUser.getUsername());
         }
     }

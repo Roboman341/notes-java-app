@@ -38,6 +38,7 @@ dependencies {
 	testImplementation 'org.seleniumhq.selenium:selenium-java:4.28.1'
 	implementation 'io.github.cdimascio:dotenv-java:3.0.0' // let java load .env variables from a .env file in tests
 	implementation 'com.h2database:h2:2.3.232'
+	implementation 'io.github.bonigarcia:webdrivermanager:5.8.0'
 }
 
 tasks.named('test') {
