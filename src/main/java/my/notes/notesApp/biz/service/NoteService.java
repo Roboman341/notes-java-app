@@ -1,5 +1,6 @@
 package my.notes.notesApp.biz.service;
 
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import my.notes.notesApp.biz.model.Customer;
 import my.notes.notesApp.biz.model.Note;
@@ -18,6 +19,7 @@ public class NoteService {
         this.customerService = customerService;
     }
 
+    @Transactional
     public Iterable<Note> getAllNotes (Customer customer) {
         // If the user is an admin, return all notes. Comment out for now.
 //        if (customer.getAuthorities().stream().anyMatch(i -> i.getAuthority().equals("ROLE_ADMIN"))) {
@@ -26,6 +28,7 @@ public class NoteService {
         return noteRepository.findByCreator(customer);
     }
 
+    @Transactional
     public Note getNoteByID(Long id) {
         Customer currentUser = customerService.getCurrentUser();
         Note noteToReturn = noteRepository.findById(id)
@@ -43,6 +46,7 @@ public class NoteService {
         return noteRepository.save(note);
     }
 
+    @Transactional
     public void deleteAllNotesByCreator(Customer customer){
         Iterable<Note> byCreator = noteRepository.findByCreator(customer);
         if (byCreator.iterator().hasNext()) {

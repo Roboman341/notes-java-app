@@ -1,8 +1,8 @@
 package my.notes.notesApp.biz.service;
 
+import jakarta.transaction.Transactional;
 import lombok.extern.log4j.Log4j2;
 import my.notes.notesApp.biz.model.Customer;
-import my.notes.notesApp.biz.model.Note;
 import my.notes.notesApp.biz.model.Role;
 import my.notes.notesApp.data.CustomerRepository;
 import my.notes.notesApp.data.NoteRepository;
@@ -19,7 +19,6 @@ import java.nio.file.attribute.UserPrincipalNotFoundException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Log4j2
 @Service
@@ -94,7 +93,7 @@ public class CustomerService implements UserDetailsService {
                 .anyMatch(roleName -> "ROLE_ADMIN".equals(roleName))) {
             List<Customer> customerUsername = customerRepository.findByUsername(username);
             if (!customerUsername.isEmpty()) {
-                noteRepository.deleteAllById(List.of(customerUsername.getFirst().getId()));
+                // No need to manually delete notes - they'll be deleted through cascade
                 customerRepository.deleteById(customerUsername.getFirst().getId());
             }
             else {
@@ -105,14 +104,14 @@ public class CustomerService implements UserDetailsService {
             throw new IllegalAccessException("You do not have access to delete a user");
         }
     }
-
+    // need to use the @Transactional annotation on any service methods that need to access the notes collection
+    // after the initial loading of the Customer entity. This is here due to LazyInitializationException
+    @Transactional
     public void deleteUserById (Long id, Customer requester) throws IllegalAccessException, UserPrincipalNotFoundException {
-        if (requester.getRoles().stream()
-                .map(Role::getName)
-                .anyMatch(roleName -> "ROLE_ADMIN".equals(roleName))) {
+        if (isAdmin(requester)) {
             Optional<Customer> customer = customerRepository.findById(id);
             if (customer.isPresent()) {
-                noteRepository.deleteAllById(List.of(customer.get().getId()));
+                // No need to manually delete notes - they'll be deleted through cascade
                 customerRepository.deleteById(customer.get().getId());
             }
             else {
@@ -124,10 +123,11 @@ public class CustomerService implements UserDetailsService {
         }
     }
 
+    // need to use the @Transactional annotation on any service methods that need to access the notes collection
+    // after the initial loading of the Customer entity. This is here due to LazyInitializationException
+    @Transactional
     public Iterable<Customer> getAllCustomers (Customer requester) throws IllegalAccessException {
-        if (requester.getRoles().stream()
-                .map(Role::getName)
-                .anyMatch(roleName -> "ROLE_ADMIN".equals(roleName))) {
+        if (isAdmin(requester)) {
             log.info("{} as ADMIN just requested all customers", requester.getUsername());
             return customerRepository.findAll();
         } else {
